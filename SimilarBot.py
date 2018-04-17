@@ -12,7 +12,7 @@ class Place(object):
 		self.weight = weight
 	def __printPlace__(self):
 		""" Affiche le lieu """
-		print("  " + self.denomination + " : " + str(100*(self.weight))[:3] + "%")
+		print("  " + self.denomination + " : " + str(100*(self.weight))[:4] + "%")
 
 class Person(object):
 	""" Classe qui définit une personne possédant une page Wikipast """
@@ -25,20 +25,48 @@ class Person(object):
 		self.acquaintanceNames = acquaintanceNames
 	def __printPlacesWeights__(self):
 		""" Affiche tous les lieux relatifs au personnage et leur poids fréquentiels """
-		print("Personnage :",self.name)
+		print("Lieux :")
 		for j in self.places:
 			j.__printPlace__()
+	def __printLifespan__(self):
+		""" Imprime la période sur laquelle le personnage a probablement vécu """
+		print("Période :")
+		print("  de",self.lifespan[0],'à',self.lifespan[1])
+	def __printWork__(self):
+		""" Imprime les coefficients d'activité """
+		print("Poids des principaux domaines d'activité :")
+		for domain,coef in (self.work[0]).items() :
+			if coef > 0.0:
+				print (" ",domain," :",str(coef*100)[:4]+"%")
+		print("Poids des domaines d'activité secondaires :")
+		for domain,coef in (self.work[1]).items() : 
+			if coef > 0.0:
+				print (" ",domain," :",str(coef*100)[:4]+"%")
+
+
+	def __printAcquaintanceNames__(self):
+		""" Imprime la liste des connaissances """
+		print("Connaissances :")
+		if len(self.acquaintanceNames) > 1 :
+			for acquaintance in self.acquaintanceNames :
+				print("  "+acquaintance+",")
+		else :
+			print("  aucune")
+
 
 def normalize(dico):
 	''' Normalise les poids des dictionnaires de la forme { string : double } '''
-	total = 0
+	total = 0.0
 	for key,val in dico.items():
 		if key != '-':
 			total += val
 	dicoNorm = dico
 	noneIncluded = False
-	if total == 0:
-		total = 1
+	if total == 0.0:
+		for key,val in dicoNorm.items():
+			dicoNorm[key] = 0.0
+		return dicoNorm
+
 	for key,val in dico.items():
 		if key != '-':
 			dicoNorm[key] = val/total
@@ -64,13 +92,14 @@ def computePlaceCorrelation(person1,person2):
 	return [score,bestPlace]
 
 def computeWorkCorrelation(person1,person2):
-	''' Calcul le score de corrélation lié aux domaines d'activités des personnages. '''
+	''' Calcule le score de corrélation lié aux domaines d'activités des personnages. '''
 	score, subscore, bestscore, bestsubscore = 0.0, 0.0, 0.0, 0.0
 
+	# Ce tableau permettra de créer la justification de la proposition de corrélation entre personnages
 	justif = { 'sport':'sportif', 'arts':'artistique', 'litterature':'littéraire', 'musique':'musical', \
 	'cinema':'cinématographique','sciences_nat':'des sciences naturelles', 'sciences_hum':'des sciences sociales',\
 	'mathematiques':'des mathématiques', 'politique':'politique','philo-psycho':'de la philosophie et de la psychologie',\
-	'medecine':'de la médecine', 'militaire':'militaire' }
+	'medecine':'de la médecine', 'militaire':'militaire', 'business':'des affaires' }
 	# Pas implémenté pour le moment
 	#subjustif = { 'tennis':0.0, 'echecs':0.0, 'football':0.0, 'natation':0.0, 'automobile':0.0, 'peinture':0.0,\
 	#'sculpture':0.0,'architecture':0.0, 'romanesque':0.0, 'essais':0.0, 'poesie':0.0, 'classique':0.0, 'moderne':0.0,\
@@ -107,6 +136,8 @@ def computeLifespanCorrelation(person1,person2):
 	elif (person2.lifespan[1] == 1):
 		return [0,'0']
 	else :
+
+
 		maxLifespan = max(person1.lifespan[1]-person1.lifespan[0],person2.lifespan[1]-person2.lifespan[0])
 		lastBorn = max(person1.lifespan[0],person2.lifespan[0])
 		firstDead = min(person1.lifespan[1],person2.lifespan[1])
@@ -134,10 +165,10 @@ def computeCorrelation(person1,person2):
 	cptPlace = computePlaceCorrelation(person1,person2)
 	cptLifespan = computeLifespanCorrelation(person1,person2)
 	cptWork = computeWorkCorrelation(person1,person2)
-	scores = [cptPlace[0],0.8*(cptLifespan[0]),cptWork[0],computeacquaintanceCorrelation(person1,person2)]
+	scores = [cptPlace[0],0.8*(cptLifespan[0]),1.2*cptWork[0],computeacquaintanceCorrelation(person1,person2)]
 	justification = ""
 	if max(scores) == scores[0]:
-		justification = "Les personnages ont vécu dans les memes lieux. Notamment à "+cptPlace[1]
+		justification = "Les personnages ont vécu dans les mêmes lieux. Notamment à "+cptPlace[1]
 	elif max(scores) == scores[1]:
 		justification = "Les personnages ont été contemporains sur la période "+cptLifespan[1]
 	elif max(scores) == scores[2]:
@@ -201,25 +232,26 @@ def getLifespan(code,name):
 	if int(birthDate[0]) <= int(deathDate[0]):
 		return [int(birthDate[0]),int(deathDate[0])]
 	elif (int(birthDate[0]) == 0) and (int(deathDate[0]) != 1):
-		birthDate[0] = int(deathDate[0])-60
+		birthDate[0] = int(deathDate[0])-70
 		return [int(birthDate[0]),int(deathDate[0])]
 	elif (int(birthDate[0]) != 0) and (int(deathDate[0]) == 1):
 		if int(birthDate[0]) > 1930:
 			deathDate[0] = 2018
 		else:
-			deathDate[0] = int(birthDate[0])+60
+			deathDate[0] = int(birthDate[0])+70
 		return [int(birthDate[0]),int(deathDate[0])]
 	else:
-		print("ERREUR dans getLifespan : la date de Deces precede la date de Naissance.")
+		print("ERREUR dans getLifespan : la date de Décès précède la date de Naissance.")
 		return [0,1]
 
 
 def getWork(code):
-	''' Détermine, à l'aide d'une liste de mots clé et du code source de la biographie, les domaines où le personnage était actif'''
+	''' Détermine, à l'aide d'une liste de mots clé et du code source de la biographie, les domaines où 
+		le personnage était actif'''
 
 	weights = { 'sport':0.0, 'arts':0.0, 'litterature':0.0, 'musique':0.0, 'cinema':0.0,
 	'sciences_nat':0.0, 'sciences_hum':0.0, 'mathematiques':0.0, 'politique':0.0,
-	'philo-psycho':0.0, 'medecine':0.0, 'militaire':0.0 }
+	'philo-psycho':0.0, 'medecine':0.0, 'militaire':0.0, 'business':0.0 }
 	subweights = { 'tennis':0.0, 'echecs':0.0, 'football':0.0, 'natation':0.0, 'automobile':0.0, 'peinture':0.0,\
 	'sculpture':0.0,'architecture':0.0, 'romanesque':0.0, 'essais':0.0, 'poesie':0.0, 'classique':0.0, 'moderne':0.0,\
 	'television':0.0, 'cinema':0.0,'theatre':0.0, 'physique-chimie':0.0,'ingenierie':0.0, 'histoire':0.0,\
@@ -227,51 +259,56 @@ def getWork(code):
 
 	keywords = {
 	'sport':['sport','olympiq','champion','compétit','victoire','joueur'],
-	'arts':['musée','exposition'],
-	'litterature':['publication','livre','ouvrage','litté','traduction','écri','académie française','lettre'],
-	'musique':['musique','chanson','chant'],
-	'cinema':[],
+	'arts':['musée','exposition','photograph','bande dessinée'],
+	'litterature':['publication','livre','ouvrage','litté','traduction',' écri','académie française','lettre'],
+	'musique':['musique','chanson',' chant ','chanteu'],
+	'cinema':['cinéma'],
 	'sciences_nat':['sciences','biologi','laboratoire','scientifique','EPF','théorie'],
-	'sciences_hum':[],
+	'sciences_hum':['sciences humaines'],
 	'mathematiques':['math','théorème','algèbre','géométr','calcul','comptab','statisti'],
 	'politique':['socialis','gouverne','communis','capital','traité','chancell','politique','municipal',\
 		'cantonal','état','etat','décret','pouvoir','national'],
-	'philo-psycho':[],
+	'philo-psycho':['philosophie-psychologie'],
 	'medecine':['médecin','hôpital','anatomie','vaccin','remède','infirm','soin','blessure','blessé','accident',\
 		'chirurgie','malad','malaria','médica','croix rouge','variole','épidém'],
-	'militaire':['armée','soldat','guerre','militaire','fusil','arme','sergent','lieutenant','major','général',\
-		'officier','bombe','maréchal','neutralité','occupation','blindé','cuirass']
+	'militaire':['armée','soldat','guerre','militaire','fusil',' arme','sergent','lieutenant','major','général',\
+		'officier','bombe','maréchal','neutralité','occupation','blindé','cuirass','armure'],
+	'business':['business','entreprise','PDG','multinationale',"chiffre d'affaire",'bénéfice','fortune',\
+	'financ','banque','revenu','Wall Street','milliardaire','dollar','investisseur','start-up','entrepreneu',\
+	'marché','économie','économique','rouble',' actionnaire']
 	}
 	subkeywords = {
 	'tennis':['sport','tennis','chelem'],
 	'echecs':['sport','échecs'],
 	'football':['sport','football'],
-	'natation':['sport','natation','nag','piscine','plonge'],
-	'automobile':['sport','automobil','Grand Prix','formule un','formule 1'],
-	'peinture':['arts','peint','tableau','toile','portrait'],
-	'sculpture':['arts','sculpt','buste','statue','marbre'],
+	'natation':['sport','natation',' nage ','nageu','piscine','plonge'],
+	'automobile':['sport','automobil','formule un','formule 1'],
+	'peinture':['arts',' peint','tableau',' toile','portrait'],
+	'sculpture':['arts','sculpt',' buste','statue','marbre'],
 	'architecture':['arts','architect','chantier','bâtiment','monument','constru'],
 	'romanesque':['litterature','récit','roman'],
 	'essais':['litterature','essai','nouvelle'],
 	'poesie':['litterature','poésie','poème','poète','alexandrin'],
 	'classique':['musique','piano','menuet','sonate','orchestre','opéra','symphonie','clavecin','violon','flûte',\
 		'liturgi','choeur','chœur','conservatoire'],
-	'moderne':['musique','concert','rap','rock','blues','jazz','hip-hop','CD','festival','album'],
+	'moderne':['musique','concert','rap ','rappeu','rock','blues','jazz','hip-hop','CD','festival','album',\
+	'vinyl','guitare'],
 	'television':['cinema','télévis','téléjournal','RTS','TSR'],
-	'cinema':['cinema','avant-première','césar','oscar','acteur','actrice','tournage','film'],
-	'theatre':['cinema','comédie','tragédie','farce','théâtre','scène'],
+	'cinema':['cinema','cinéma','avant-première','acteur','actrice','tournage','film'],
+	'theatre':['cinema','comédie','tragédie','farce','théâtre','scène','drame'],
 	'physique-chimie':['sciences_nat','atom','physique','physicien','radiation','radium','électron','photon'\
-		'chimie','proton','radioacti','gravit','espace-temps'],
-	'ingenierie':['sciences_nat','électri','mécani','informatique','ordinateur','comput','techn'],
+		'chimie','proton','radioacti','gravité','gravitation','espace-temps'],
+	'ingenierie':['sciences_nat','électri','mécani','informatique','ordinateur','comput','techn','invente','invention'],
 	'histoire':['sciences_hum','histoire','archéo','antiqu','histori','paléo'],
 	'anthropo-sociologie':['sciences_hum','ethnolog','civilization','anthropo','sociolog','sciences sociales',\
 		'ethni','féminis',"droits de l'Homme"],
 	'democratie':['politique','election','élection','vote','votation','conseill','confédération','canton',\
 		'société des Nations','ONU','UNESCO','société des nations','USA','maison Blanche','préside','déput',\
 		'sénat','libéra','capital','républi','droits','citoyen','civique','européen','paix','pacifisme',\
-		'communauté','union','liberté',' socialis'],
-	'monarchie':['politique','roi','majesté','monarque','monarchie','royaume','tsar','couronne','trône','duc',\
-		'baron','comte','tsar','empire','empereur','impératrice','reine','monarque','noble','aristocrat'],
+		'communauté','union','liberté',' socialis','assemblée','indépendan'],
+	'monarchie':['politique',' roi ',' Roi ','majesté','monarque','monarchie','royaume','tsar','couronne','trône',\
+	' duc ',' Duc ','duchesse','duché','baron','comte','tsar','empire','empereur','impératrice','reine','monarque',\
+	'noble','aristocrat'],
 	'dictature':['politique','dictat','URSS','nazi','fasci','national-social','soviet','soviétique','reich','attentat',\
 		'junte','détenu','détention','prison','complot','révolution','révolt','exécution','interdi','autocrat'],
 	'philo':['philo-psycho','philosoph'],
@@ -280,24 +317,36 @@ def getWork(code):
 
 	events = code.split("*")
 	for j in events :
+		# À chaque fois qu'une ligne de la biographie est reliée à une catégorie d'activité par un des 
+		# mot-clés s'y rapportant, augmente l'importance de cette catégorie pour le personnage concerné. 
 		for category,words in keywords.items():
 			counter = 0
+			
 			for word in words:
 				counter += j.count(word)+j.count(word.capitalize())
-				for subcategory,subwords in subkeywords.items():
-					if subwords[0]==category:
-						for subword in subwords[1:]:
-							counter += j.count(word)+j.count(word.capitalize())
+				'''
+				# DEBUG : permet de vérifier les mots-clé repérés, voir aussi la suite du code DEBUG plus bas
+				if (j.count(word)+j.count(word.capitalize())) >= 1 :
+					print(word)
+				'''
+
+			# Idem pour les mots clés des sous-catégories
+			for subcategory,subwords in subkeywords.items():
+				subcounter = 0
+				if subwords[0]==category:
+					for subword in subwords[1:]:
+						searchCount = j.count(subword)+j.count(subword.capitalize())
+						counter += searchCount
+						subcounter += searchCount
+						'''
+						# DEBUG : permet de vérifier les mots-clé repérés (suite)
+						if searchCount >= 1 :
+							print(subword)
+						'''
+				if subcounter > 0:
+					subweights[subcategory] += 1
 			if counter > 0:
 				weights[category] += 1
-
-	for j in events :
-		for subcategory,subwords in subkeywords.items():
-			counter = 0
-			for subword in subwords[1:]:
-				counter += j.count(subword)+j.count(subword.capitalize())
-			if counter > 0:
-				subweights[subcategory] += 1
 
 	return [normalize(weights),normalize(subweights)]
 
@@ -333,15 +382,26 @@ def ranking(people):
 			elif (score >= bestScore[2]) and (item1.name != item2.name):
 				bestScore[2],bestName[2],bestjustif[2] = score,item2.name,computeCorrelation(item1,item2)[1]
 
+		print("")
 		print("Recommandation(s) pour",item1.name, ":")
 		if bestScore[0] > 0.8:
-			print(bestName[0] + ". Matching :", str(bestScore[0])[:4], ".",bestjustif[0])
+			print(bestName[0] + ". Matching :", str(bestScore[0]/0.04)[:4]+"%.",bestjustif[0])
 		else:
 			print("aucune")
 		if bestScore[1] > 1:
-			print(bestName[1] + ". Matching :", str(bestScore[1])[:4], ".",bestjustif[1])
+			print(bestName[1] + ". Matching :", str(bestScore[1]/0.04)[:4]+"%.",bestjustif[1])
 		if bestScore[2] > 1.2:
-			print(bestName[2] + ". Matching :", str(bestScore[2])[:4], ".",bestjustif[2])
+			print(bestName[2] + ". Matching :", str(bestScore[2]/0.04)[:4]+"%.",bestjustif[2])
+
+def getInfo(people):
+	for person in people :
+		print("\n")
+		print("Nom :",person.name)
+		person.__printLifespan__()
+		person.__printPlacesWeights__()
+		person.__printWork__()
+		person.__printAcquaintanceNames__()
+	return True
 
 
 ##############################################################################################################################
@@ -356,6 +416,7 @@ baseurl='http://wikipast.epfl.ch/wikipast/'
 summary="Test bot"
 
 # Liste des pages biographiques complètes
+
 names=['Adolf_Hitler','Nicolas_II','Albert_Einstein','Jeanne_Hersch','John_Lennon','Victor_Hugo','Fidel_Castro',\
 'Bjorn_Borg','Ferdinand_Hodler','Alberto_Giacometti','Auguste_Piccard','Wolfgang_Pauli','Gustave_Ador',\
 'Arthur_Honegger','Wolfgang_Amadeus_Mozart','Mao_Zedong','Robert_Oppenheimer','Richard_Wagner','Simone_de_Beauvoir',\
@@ -369,6 +430,7 @@ names=['Adolf_Hitler','Nicolas_II','Albert_Einstein','Jeanne_Hersch','John_Lenno
 'Jacques-Yves_Cousteau','Winston_Churchill','Bobby_Fischer','Paul_Maillefer','Claude_Nicollier',\
 'Louis_De_Funès','Salvador_Dalí','Louis_Lumière','Henri_Dès','Daniel_Brélaz','Hergé','Nicéphore_Niépce',\
 'Élisabeth_II','Lénine']
+
 
 # Login request
 payload={'action':'query','format':'json','utf8':'','meta':'tokens','type':'login'}
@@ -396,18 +458,15 @@ for name in names:
 		code+=primitive.string
 	someone = Person(name.replace('_',' '),getPlaces(code),getLifespan(code,name),getWork(code),getacquaintance(code,names))
 	people.append(someone)
+	
 
-print(len(people))
-	#someone.__printPlacesWeights__()
-	#print(someone.lifespan)
-	#print(someone.work[0])
-	#print(someone.work[1])
+# getInfo(people)
 
 checkAquaintanceReciprocity(people)
 
 ranking(people)
 
-print("Temps de calcul :",str(time.time()-timeInit)[:4],"s")
+print("\n","TEMPS DE CALCUL :",str(time.time()-timeInit)[:4],"s")
 
 ##############################################################################################################################
 ##############################################################################################################################
