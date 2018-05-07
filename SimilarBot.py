@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-import requests
-from bs4 import BeautifulSoup
+from   bs4 import BeautifulSoup
 import re
 import time
+import requests
+
+
 
 class Place(object):
 	""" Classe qui définit un lieu """
 	def __init__(self,denomination,weight):
+	def __printPlace__(self):
 		super(Place, self).__init__()
 		self.denomination = denomination
 		self.weight = weight
-	def __printPlace__(self):
 		""" Affiche le lieu """
 		print("  " + self.denomination + " : " + str(100*(self.weight))[:4] + "%")
 
@@ -42,7 +44,6 @@ class Person(object):
 		for domain,coef in (self.work[1]).items() : 
 			if coef > 0.0:
 				print (" ",domain," :",str(coef*100)[:4]+"%")
-
 
 	def __printAcquaintanceNames__(self):
 		""" Imprime la liste des connaissances """
@@ -122,8 +123,10 @@ def computeWorkCorrelation(person1,person2):
 		for category2,value2 in subcat2.items():
 			if category1 == category2:
 				subscore += min(value1,value2)
-
-	return [score + 0.5*subscore,ijustif]
+	print("workMain",score)
+	print("workSub",subscore)
+	print("workScore",(score + 0.5*subscore)/1.5)
+	return [(score + 0.5*subscore)/1.5,ijustif]
 
 def computeLifespanCorrelation(person1,person2):
 	''' Calcul le score de corrélation lié à la période où deux personnages ont vécu. '''
@@ -142,7 +145,7 @@ def computeLifespanCorrelation(person1,person2):
 		lastBorn = max(person1.lifespan[0],person2.lifespan[0])
 		firstDead = min(person1.lifespan[1],person2.lifespan[1])
 		yearCount = firstDead - lastBorn
-		justif = str(lastBorn)+"-"+str(firstDead)
+		justif = "[["+str(lastBorn)+"]]"+"-"+"[["+str(firstDead)+"]]"
 		score = 0.0
 		if yearCount >= 0:
 			score = yearCount/maxLifespan
@@ -165,10 +168,10 @@ def computeCorrelation(person1,person2):
 	cptPlace = computePlaceCorrelation(person1,person2)
 	cptLifespan = computeLifespanCorrelation(person1,person2)
 	cptWork = computeWorkCorrelation(person1,person2)
-	scores = [cptPlace[0],0.8*(cptLifespan[0]),1.2*cptWork[0],computeacquaintanceCorrelation(person1,person2)]
+	scores = [cptPlace[0],0.8*(cptLifespan[0]),1.5*(cptWork[0]),computeacquaintanceCorrelation(person1,person2)]
 	justification = ""
 	if max(scores) == scores[0]:
-		justification = "Les personnages ont vécu dans les mêmes lieux. Notamment à "+cptPlace[1]
+		justification = "Les personnages ont vécu dans les mêmes lieux. Notamment à [["+cptPlace[1]+"]]"
 	elif max(scores) == scores[1]:
 		justification = "Les personnages ont été contemporains sur la période "+cptLifespan[1]
 	elif max(scores) == scores[2]:
@@ -232,7 +235,10 @@ def getLifespan(code,name):
 	if int(birthDate[0]) <= int(deathDate[0]):
 		return [int(birthDate[0]),int(deathDate[0])]
 	elif (int(birthDate[0]) == 0) and (int(deathDate[0]) != 1):
-		birthDate[0] = int(deathDate[0])-70
+		firstEntry = re.findall("(?<=\[\[)[0-9]*(?=\.[0-9])",j)
+		if len(firstEntry)==0:
+				firstEntry = re.findall("(?<=\[\[)[0-9]*(?=\]\])",j)
+		birthDate[0] = int(firstEntry)
 		return [int(birthDate[0]),int(deathDate[0])]
 	elif (int(birthDate[0]) != 0) and (int(deathDate[0]) == 1):
 		if int(birthDate[0]) > 1930:
@@ -309,7 +315,7 @@ def getWork(code):
 	'monarchie':['politique',' roi ',' Roi ','majesté','monarque','monarchie','royaume','tsar','couronne','trône',\
 	' duc ',' Duc ','duchesse','duché','baron','comte','tsar','empire','empereur','impératrice','reine','monarque',\
 	'noble','aristocrat'],
-	'dictature':['politique','dictat','URSS','nazi','fasci','national-social','soviet','soviétique','reich','attentat',\
+	'dictature':['politique','dictat','URSS','nazi','fascis','national-social','soviet','soviétique','reich','attentat',\
 		'junte','détenu','détention','prison','complot','révolution','révolt','exécution','interdi','autocrat'],
 	'philo':['philo-psycho','philosoph'],
 	'psycho':['philo-psycho','psych']
@@ -364,34 +370,38 @@ def checkAquaintanceReciprocity(people):
 						(item1.acquaintanceNames).append(item2.name)
 	return True
 
-def ranking(people):
+def ranking(people, item1):
 	''' Établit le top 3 des meilleures corrélations, puis affiche celles qui présentent un score élevé '''
-	for item1 in people :
-		bestScore = [0.0,0.0,0.0]
-		bestName = ["","",""]
-		bestjustif = ["","",""]
-		for item2 in people:
-			score = computeCorrelation(item1,item2)[0]
-			if (score >= bestScore[0]) and (item1.name != item2.name):
-				bestScore[2],bestName[2],bestjustif[2] = bestScore[1],bestName[1],bestjustif[1]
-				bestScore[1],bestName[1],bestjustif[1] = bestScore[0],bestName[0],bestjustif[0]
-				bestScore[0],bestName[0],bestjustif[0] = score,item2.name,computeCorrelation(item1,item2)[1]
-			elif (score >= bestScore[1]) and (item1.name != item2.name):
-				bestScore[2],bestName[2],bestjustif[2] = bestScore[1],bestName[1],bestjustif[1]
-				bestScore[1],bestName[1],bestjustif[1] = score,item2.name,computeCorrelation(item1,item2)[1]
-			elif (score >= bestScore[2]) and (item1.name != item2.name):
-				bestScore[2],bestName[2],bestjustif[2] = score,item2.name,computeCorrelation(item1,item2)[1]
+	similarBotRanking = ""
+	bestScore = [0.0,0.0,0.0]
+	bestName = ["","",""]
+	bestjustif = ["","",""]
+	for item2 in people:
+		score = computeCorrelation(item1,item2)[0]
+		if (score >= bestScore[0]) and (item1.name != item2.name):
+			bestScore[2],bestName[2],bestjustif[2] = bestScore[1],bestName[1],bestjustif[1]
+			bestScore[1],bestName[1],bestjustif[1] = bestScore[0],bestName[0],bestjustif[0]
+			bestScore[0],bestName[0],bestjustif[0] = score,item2.name,computeCorrelation(item1,item2)[1]
+		elif (score >= bestScore[1]) and (item1.name != item2.name):
+			bestScore[2],bestName[2],bestjustif[2] = bestScore[1],bestName[1],bestjustif[1]
+			bestScore[1],bestName[1],bestjustif[1] = score,item2.name,computeCorrelation(item1,item2)[1]
+		elif (score >= bestScore[2]) and (item1.name != item2.name):
+			bestScore[2],bestName[2],bestjustif[2] = score,item2.name,computeCorrelation(item1,item2)[1]
 
-		print("")
-		print("Recommandation(s) pour",item1.name, ":")
-		if bestScore[0] > 0.8:
-			print(bestName[0] + ". Matching :", str(bestScore[0]/0.04)[:4]+"%.",bestjustif[0])
-		else:
-			print("aucune")
-		if bestScore[1] > 1:
-			print(bestName[1] + ". Matching :", str(bestScore[1]/0.04)[:4]+"%.",bestjustif[1])
-		if bestScore[2] > 1.2:
-			print(bestName[2] + ". Matching :", str(bestScore[2]/0.04)[:4]+"%.",bestjustif[2])
+	similarBotRanking += "== Recommandation(s) automatique pour",item1.name,"== \n"
+	if bestScore[0] > 0.8:
+		similarBotRanking += "* [[" + bestName[0] + "]]. Matching : " + str(bestScore[0]/0.043)[:4] 
+		similarBotRanking += "%." + " " +bestjustif[0] + "\n"
+	else:
+		print("aucune")
+	if bestScore[1] > 1:
+		similarBotRanking += "* [[" + bestName[1] + "]]. Matching : " + str(bestScore[1]/0.043)[:4] 
+		similarBotRanking += "%." + " " +bestjustif[1] + "\n"
+	if bestScore[2] > 1.2:
+		similarBotRanking += "* [[" + bestName[2] + "]]. Matching : " + str(bestScore[2]/0.043)[:4] 
+		similarBotRanking += "%." + " " +bestjustif[2] + "\n"
+
+	return similarBotRanking
 
 def getInfo(people):
 	for person in people :
@@ -459,12 +469,61 @@ for name in names:
 	someone = Person(name.replace('_',' '),getPlaces(code),getLifespan(code,name),getWork(code),getacquaintance(code,names))
 	people.append(someone)
 	
-
-# getInfo(people)
+''' fonction getInfo pour le DEBUG '''
+#getInfo(people)
 
 checkAquaintanceReciprocity(people)
 
-ranking(people)
+for person in people:
+	similarBotRanking = ranking(people, person)
+
+	result=requests.post(baseurl+'api.php?action=query&titles='+(person.name).replace(' ','_')+'&export&exportnowrap')
+	soup=BeautifulSoup(result.text, "html.parser")
+	code=''
+	for primitive in soup.findAll("text"):
+		code+=primitive.string
+	intro = "== Recommandation(s) automatique pour " + person.name + " =="
+	# si SimilarBot a déjà été utilisé, simplement mettre à jour la section avec les nouvelles recommandations
+	if (intro in code):
+		afterCode = code[code.find(intro)+len(intro):]
+		afterCode = afterCode[afterCode.find("=="):]
+		beforeCode = code[:code.find(intro)]
+
+        content= beforeCode + similarBotRanking + afterCode
+        payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
+        'title':(person.name).replace(' ','_'),'token':edit_token}
+        r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+        print(r4.text)
+
+	elif ("== Biographie ==" in code):
+		otherSection = code[code.find("== Biographie ==")+len("== Biographie =="):]
+		otherSection = afterCode[afterCode.find("=="):]
+		# s'il n'y a pas d'autres sections dans la page que Biographie, juste ajouter à la fin de la page
+		if len(otherSection) == 1:
+			content = similarBotRanking
+			payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
+			'title':(person.name).replace(' ','_'),'token':edit_token}
+			r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+			print(r4.text)
+		# si la section Biographie existe et que d'autres sections existent également, la recommandation est placée 
+		# juste après la Biographie
+		else:
+			afterCode = code[code.find("== Biographie ==")+len("== Biographie =="):]
+			afterCode = afterCode[afterCode.find("=="):]
+			beforeCode = code[:code.find(afterCode)]
+			content= beforeCode + similarBotRanking + afterCode
+        	payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
+        	'title':(person.name).replace(' ','_'),'token':edit_token}
+        	r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+        	print(r4.text)
+	# si aucun de ces cas n'est respecté, SimilarBot ajoute simplement la recommandation à la fin
+	else:
+        content=similarBotRanking
+        payload={'action':'edit','assert':'user','format':'json','utf8':'','appendtext':content,'summary':summary,\
+        'title':(person.name).replace(' ','_'),'token':edit_token}
+        r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+        print(r4.text)
+		
 
 print("\n","TEMPS DE CALCUL :",str(time.time()-timeInit)[:4],"s")
 
