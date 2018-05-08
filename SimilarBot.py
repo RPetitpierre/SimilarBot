@@ -9,11 +9,11 @@ import requests
 class Place(object):
 	""" Classe qui définit un lieu """
 	def __init__(self,denomination,weight):
-	def __printPlace__(self):
 		super(Place, self).__init__()
 		self.denomination = denomination
 		self.weight = weight
-		""" Affiche le lieu """
+	""" Affiche le lieu """
+	def __printPlace__(self):
 		print("  " + self.denomination + " : " + str(100*(self.weight))[:4] + "%")
 
 class Person(object):
@@ -123,9 +123,6 @@ def computeWorkCorrelation(person1,person2):
 		for category2,value2 in subcat2.items():
 			if category1 == category2:
 				subscore += min(value1,value2)
-	print("workMain",score)
-	print("workSub",subscore)
-	print("workScore",(score + 0.5*subscore)/1.5)
 	return [(score + 0.5*subscore)/1.5,ijustif]
 
 def computeLifespanCorrelation(person1,person2):
@@ -140,15 +137,14 @@ def computeLifespanCorrelation(person1,person2):
 		return [0,'0']
 	else :
 
-
-		maxLifespan = max(person1.lifespan[1]-person1.lifespan[0],person2.lifespan[1]-person2.lifespan[0])
+		iLifespan = person1.lifespan[1]-person1.lifespan[0]
 		lastBorn = max(person1.lifespan[0],person2.lifespan[0])
 		firstDead = min(person1.lifespan[1],person2.lifespan[1])
 		yearCount = firstDead - lastBorn
 		justif = "[["+str(lastBorn)+"]]"+"-"+"[["+str(firstDead)+"]]"
 		score = 0.0
 		if yearCount >= 0:
-			score = yearCount/maxLifespan
+			score = yearCount/iLifespan
 			return [score,justif]
 		else:
 			return [0,'0']
@@ -171,13 +167,13 @@ def computeCorrelation(person1,person2):
 	scores = [cptPlace[0],0.8*(cptLifespan[0]),1.5*(cptWork[0]),computeacquaintanceCorrelation(person1,person2)]
 	justification = ""
 	if max(scores) == scores[0]:
-		justification = "Les personnages ont vécu dans les mêmes lieux. Notamment à [["+cptPlace[1]+"]]"
+		justification = "Il semble que les personnages aient vécu dans les mêmes lieux. Notamment à [["+cptPlace[1]+"]]."
 	elif max(scores) == scores[1]:
-		justification = "Les personnages ont été contemporains sur la période "+cptLifespan[1]
+		justification = "Il semble que les personnages aient été contemporains sur la période "+cptLifespan[1]+"."
 	elif max(scores) == scores[2]:
-		justification = "Les personnages ont tous deux été actifs dans le domaine "+cptWork[1]
+		justification = "Il semble que les personnages aient tous deux été actifs dans le domaine "+cptWork[1] +"."
 	elif max(scores) == scores[3]:
-		justification = "Les personnages se connaissaient."
+		justification = "Il semble que les personnages se connaissaient."
 	return [scores[0]+scores[1]+scores[2]+scores[3],justification]
 
 def getacquaintance(code,inames):
@@ -388,17 +384,17 @@ def ranking(people, item1):
 		elif (score >= bestScore[2]) and (item1.name != item2.name):
 			bestScore[2],bestName[2],bestjustif[2] = score,item2.name,computeCorrelation(item1,item2)[1]
 
-	similarBotRanking += "== Recommandation(s) automatique pour",item1.name,"== \n"
+	similarBotRanking += "\n== Recommandation(s) automatique(s) pour " + person.name + " == \n"
 	if bestScore[0] > 0.8:
-		similarBotRanking += "* [[" + bestName[0] + "]]. Matching : " + str(bestScore[0]/0.043)[:4] 
+		similarBotRanking += "* [[" + bestName[0] + "]]. Recouvrement : " + str(bestScore[0]/0.043)[:4] 
 		similarBotRanking += "%." + " " +bestjustif[0] + "\n"
 	else:
-		print("aucune")
+		similarBotRanking += "Aucune recommandation proposée. \n"
 	if bestScore[1] > 1:
-		similarBotRanking += "* [[" + bestName[1] + "]]. Matching : " + str(bestScore[1]/0.043)[:4] 
+		similarBotRanking += "* [[" + bestName[1] + "]]. Recouvrement : " + str(bestScore[1]/0.043)[:4] 
 		similarBotRanking += "%." + " " +bestjustif[1] + "\n"
 	if bestScore[2] > 1.2:
-		similarBotRanking += "* [[" + bestName[2] + "]]. Matching : " + str(bestScore[2]/0.043)[:4] 
+		similarBotRanking += "* [[" + bestName[2] + "]]. Recouvrement : " + str(bestScore[2]/0.043)[:4] 
 		similarBotRanking += "%." + " " +bestjustif[2] + "\n"
 
 	return similarBotRanking
@@ -466,7 +462,20 @@ for name in names:
 	code=''
 	for primitive in soup.findAll("text"):
 		code+=primitive.string
-	someone = Person(name.replace('_',' '),getPlaces(code),getLifespan(code,name),getWork(code),getacquaintance(code,names))
+
+	codeToConsider = code
+	# éviter de lire la section Recommandations déjà écrite, ainsi que les éventuelles autres sections réalisées
+	# par des Bots, comme SummarizingBot.
+	recomText = "== Recommandation(s) automatique(s) pour "
+	if ("== Biographie ==" in code) :
+		codeToConsider = code[code.find("== Biographie ==")+len("== Biographie =="):]
+		codeToConsider = codeToConsider[:codeToConsider.find("==")]
+	elif (recomText in code) :
+		codeToConsider = code[:code.find(recomText)+len(recomText)]
+	
+	code = codeToConsider
+
+	someone = Person(name.replace('_',' '),getPlaces(codeToConsider),getLifespan(code,name),getWork(code),getacquaintance(code,names))
 	people.append(someone)
 	
 ''' fonction getInfo pour le DEBUG '''
@@ -475,6 +484,8 @@ for name in names:
 checkAquaintanceReciprocity(people)
 
 for person in people:
+	time.sleep(3)
+
 	similarBotRanking = ranking(people, person)
 
 	result=requests.post(baseurl+'api.php?action=query&titles='+(person.name).replace(' ','_')+'&export&exportnowrap')
@@ -482,26 +493,30 @@ for person in people:
 	code=''
 	for primitive in soup.findAll("text"):
 		code+=primitive.string
-	intro = "== Recommandation(s) automatique pour " + person.name + " =="
+	intro = "\n== Recommandation(s) automatique(s) pour " + person.name + " =="
+
 	# si SimilarBot a déjà été utilisé, simplement mettre à jour la section avec les nouvelles recommandations
 	if (intro in code):
 		afterCode = code[code.find(intro)+len(intro):]
-		afterCode = afterCode[afterCode.find("=="):]
+		otherSection = re.findall("==",afterCode)
+		if len(otherSection) >= 1:
+			afterCode = afterCode[afterCode.find("=="):]
+		else:
+			afterCode = ""
 		beforeCode = code[:code.find(intro)]
-
-        content= beforeCode + similarBotRanking + afterCode
-        payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
-        'title':(person.name).replace(' ','_'),'token':edit_token}
-        r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
-        print(r4.text)
+		content= beforeCode + similarBotRanking + afterCode
+		payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
+		'title':(person.name).replace(' ','_'),'token':edit_token}
+		r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+		print(r4.text)
 
 	elif ("== Biographie ==" in code):
-		otherSection = code[code.find("== Biographie ==")+len("== Biographie =="):]
-		otherSection = afterCode[afterCode.find("=="):]
+		afterCode = code[code.find("== Biographie ==")+len("== Biographie =="):]
+		otherSection = re.findall("==",afterCode)
 		# s'il n'y a pas d'autres sections dans la page que Biographie, juste ajouter à la fin de la page
-		if len(otherSection) == 1:
+		if len(otherSection) == 0:
 			content = similarBotRanking
-			payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
+			payload={'action':'edit','assert':'user','format':'json','utf8':'','appendtext':content,'summary':summary,\
 			'title':(person.name).replace(' ','_'),'token':edit_token}
 			r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
 			print(r4.text)
@@ -512,17 +527,17 @@ for person in people:
 			afterCode = afterCode[afterCode.find("=="):]
 			beforeCode = code[:code.find(afterCode)]
 			content= beforeCode + similarBotRanking + afterCode
-        	payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
-        	'title':(person.name).replace(' ','_'),'token':edit_token}
-        	r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
-        	print(r4.text)
-	# si aucun de ces cas n'est respecté, SimilarBot ajoute simplement la recommandation à la fin
+			payload={'action':'edit','assert':'user','format':'json','utf8':'','text':content,'summary':summary,\
+			'title':(person.name).replace(' ','_'),'token':edit_token}
+			r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+			print(r4.text)
+	# Si aucun de ces cas n'est repéré, SimilarBot ajoute simplement la recommandation à la fin de la page Wikipast
 	else:
-        content=similarBotRanking
-        payload={'action':'edit','assert':'user','format':'json','utf8':'','appendtext':content,'summary':summary,\
-        'title':(person.name).replace(' ','_'),'token':edit_token}
-        r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
-        print(r4.text)
+		content=similarBotRanking
+		payload={'action':'edit','assert':'user','format':'json','utf8':'','appendtext':content,'summary':summary,\
+		'title':(person.name).replace(' ','_'),'token':edit_token}
+		r4=requests.post(baseurl+'api.php',data=payload,cookies=edit_cookie)
+		print(r4.text)
 		
 
 print("\n","TEMPS DE CALCUL :",str(time.time()-timeInit)[:4],"s")
