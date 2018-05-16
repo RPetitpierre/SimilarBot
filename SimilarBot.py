@@ -1,3 +1,7 @@
+# 2018. École Polytechnique Fédérale de Lausanne (EPFL).
+# SHS Digital Humanities
+# Rémi PETITPIERRE, Elisa VIDAL-REVEL, Christian BERTONI, Ludovico MACHET, Mathieu SUTER
+
 # -*- coding: utf-8 -*-
 from   bs4 import BeautifulSoup
 import re
@@ -164,16 +168,19 @@ def computeCorrelation(person1,person2):
 	cptPlace = computePlaceCorrelation(person1,person2)
 	cptLifespan = computeLifespanCorrelation(person1,person2)
 	cptWork = computeWorkCorrelation(person1,person2)
+	#print(person1.name) #DEBUG
+	#print("Lieux :",cptPlace[0],"Lifespan :",cptLifespan[0],"Work :",cptWork[0]) #DEBUG
 	scores = [cptPlace[0],0.8*(cptLifespan[0]),1.5*(cptWork[0]),computeacquaintanceCorrelation(person1,person2)]
 	justification = ""
 	if max(scores) == scores[0]:
-		justification = "Il semble que les personnages aient vécu dans les mêmes lieux. Notamment à [["+cptPlace[1]+"]]."
+		justification = "Il semble que les personnages aient été actifs dans les mêmes lieux. Notamment à [["+cptPlace[1]+"]]."
 	elif max(scores) == scores[1]:
 		justification = "Il semble que les personnages aient été contemporains sur la période "+cptLifespan[1]+"."
 	elif max(scores) == scores[2]:
 		justification = "Il semble que les personnages aient tous deux été actifs dans le domaine "+cptWork[1] +"."
 	elif max(scores) == scores[3]:
 		justification = "Il semble que les personnages se connaissaient."
+	#print("TOTAL",scores[0]+scores[1]+scores[2]+scores[3]) #DEBUG
 	return [scores[0]+scores[1]+scores[2]+scores[3],justification]
 
 def getacquaintance(code,inames):
@@ -227,7 +234,9 @@ def getLifespan(code,name):
 			deathDate = re.findall("(?<=\[\[)[0-9]*(?=\.[0-9])",j)
 			if len(deathDate)==0:
 				deathDate = re.findall("(?<=\[\[)[0-9]*(?=\]\])",j)
-
+	if (len(birthDate)<1) or (len(deathDate)<1):
+		print("ERREUR : Les dates de Naissance et/ou de mort de la page",name.replace('_',' '),"sont mal rédigées.")
+		return False
 	if int(birthDate[0]) <= int(deathDate[0]):
 		return [int(birthDate[0]),int(deathDate[0])]
 	elif (int(birthDate[0]) == 0) and (int(deathDate[0]) != 1):
@@ -260,7 +269,7 @@ def getWork(code):
 	'anthropo-sociologie':0.0, 'democratie':0.0,'monarchie':0.0, 'dictature':0.0,'philo':0.0, 'psycho':0.0 }
 
 	keywords = {
-	'sport':['sport','olympiq','champion','compétit','victoire','joueur'],
+	'sport':['sport','olympiq','champion','compétit','victoire','joueur','entraîneu'],
 	'arts':['musée','exposition','photograph','bande dessinée'],
 	'litterature':['publication','livre','ouvrage','litté','traduction',' écri','académie française','lettre'],
 	'musique':['musique','chanson',' chant ','chanteu'],
@@ -279,8 +288,9 @@ def getWork(code):
 	'financ','banque','revenu','Wall Street','milliardaire','dollar','investisseur','start-up','entrepreneu',\
 	'marché','économie','économique','rouble',' actionnaire']
 	}
+
 	subkeywords = {
-	'tennis':['sport','tennis','chelem'],
+	'tennis':['sport','tennis','chelem','Roland-Garros','Wimbledon','tournoi du Masters','circuit ATP'],
 	'echecs':['sport','échecs'],
 	'football':['sport','football'],
 	'natation':['sport','natation',' nage ','nageu','piscine','plonge'],
@@ -292,11 +302,11 @@ def getWork(code):
 	'essais':['litterature','essai','nouvelle'],
 	'poesie':['litterature','poésie','poème','poète','alexandrin'],
 	'classique':['musique','piano','menuet','sonate','orchestre','opéra','symphonie','clavecin','violon','flûte',\
-		'liturgi','choeur','chœur','conservatoire'],
+		'liturgi','choeur','chœur','conservatoire','opera'],
 	'moderne':['musique','concert','rap ','rappeu','rock','blues','jazz','hip-hop','CD','festival','album',\
 	'vinyl','guitare'],
 	'television':['cinema','télévis','téléjournal','RTS','TSR'],
-	'cinema':['cinema','cinéma','avant-première','acteur','actrice','tournage','film'],
+	'cinema':['cinema','cinéma','avant-première','acteur','actrice','tournage','film','[[Rôle]]'],
 	'theatre':['cinema','comédie','tragédie','farce','théâtre','scène','drame'],
 	'physique-chimie':['sciences_nat','atom','physique','physicien','radiation','radium','électron','photon'\
 		'chimie','proton','radioacti','gravité','gravitation','espace-temps'],
@@ -385,15 +395,15 @@ def ranking(people, item1):
 			bestScore[2],bestName[2],bestjustif[2] = score,item2.name,computeCorrelation(item1,item2)[1]
 
 	similarBotRanking += "\n== Recommandation(s) automatique(s) pour " + person.name + " == \n"
-	if bestScore[0] > 0.8:
+	if bestScore[0] > 0.86:
 		similarBotRanking += "* [[" + bestName[0] + "]]. Recouvrement : " + str(bestScore[0]/0.043)[:4] 
 		similarBotRanking += "%." + " " +bestjustif[0] + "\n"
 	else:
 		similarBotRanking += "Aucune recommandation proposée. \n"
-	if bestScore[1] > 1:
+	if bestScore[1] > 1.075:
 		similarBotRanking += "* [[" + bestName[1] + "]]. Recouvrement : " + str(bestScore[1]/0.043)[:4] 
 		similarBotRanking += "%." + " " +bestjustif[1] + "\n"
-	if bestScore[2] > 1.2:
+	if bestScore[2] > 1.29:
 		similarBotRanking += "* [[" + bestName[2] + "]]. Recouvrement : " + str(bestScore[2]/0.043)[:4] 
 		similarBotRanking += "%." + " " +bestjustif[2] + "\n"
 
@@ -435,9 +445,8 @@ names=['Adolf_Hitler','Nicolas_II','Albert_Einstein','Jeanne_Hersch','John_Lenno
 'Gioachino_Rossini','Thomas_Edison','Ernesto_Rafael_Guevara','Philippe_Suchard','Nicolas_Bouvier',\
 'Jacques-Yves_Cousteau','Winston_Churchill','Bobby_Fischer','Paul_Maillefer','Claude_Nicollier',\
 'Louis_De_Funès','Salvador_Dalí','Louis_Lumière','Henri_Dès','Daniel_Brélaz','Hergé','Nicéphore_Niépce',\
-'Élisabeth_II','Lénine']
-
-
+'Élisabeth_II','Lénine','André_Breton','Franklin_D._Roosevelt','Jean_Tinguely']
+print("Longueur names :",len(names))
 # Login request
 payload={'action':'query','format':'json','utf8':'','meta':'tokens','type':'login'}
 r1=requests.post(baseurl + 'api.php', data=payload)
